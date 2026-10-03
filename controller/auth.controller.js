@@ -2,6 +2,7 @@ import User from "../models/user.model.js"
 import bcrypt from 'bcryptjs'
 import genToken from "../util/token.js";
 import user from "../models/user.model.js";
+import { sendOtpMail } from "../util/mail.js";
 export const signUp = async(req, res)=>{
     try{
         const {fullName,email,password,mobile,role}=req.body
@@ -87,8 +88,8 @@ export const signOut = async(req, res)=>{
 
 export const sendOtp=async(req,res)=>{
     try{
-        const email = req.body
-        const user = await User.findOne({email})
+        const { email } = req.body;
+        const user = await User.findOne({email});
         if(!user){
             return res.status(400).json({message:"User not found"})
         }
@@ -135,5 +136,56 @@ export const verifyOtp = async(req, res)=>{
     }
 }
 
+export const resetPassword=async(req,res)=>{
+    try {
+        const {email,newPassword}=req.body;
+        const user = await User.findOne({email});
+        if(!user || !user.isOtpVerified){
+            return res.status(400).json({message:"Invalid request"});
+        }
+        const hashedPassword = await bcrypt.hash(newPassword,10)
+        user.password = hashedPassword;
+        user.resetOtp = null;
+        user.otpExpiry = null;
+        user.isOtpVerified = false;
+        await user.save();
+        return res.status(200).json({message:"Password reset successfully"});
+    } catch (error) {
+        console.log('Reset Password error: ',error)
+        return res.status(500).json({message:`Reset Password error: ${error}`})
+    }
+}
+
+export const googleAuth = async (req, res) => {
+    try {
+        const { fullName, email, mobile, role } = req.body;
+        let existingUser = await User.findOne({ email });
+
+        if (!existingUser) {
+            const randomPassword = Math.random().toString(36).slice(-8) + Date.now().toString();
+            const hashedPassword = await bcrypt.hash(randomPassword, 10);
+            existingUser = await User.create({
+                fullName: fullName || "Google User",
+                email,
+                mobile: mobile || "",
+                role: role || "user",
+                password: hashedPassword
+            });
+        }
+
+        const token = await genToken(existingUser._id);
+        res.cookie("token", token, {
+            secure: false,
+            sameSite: "strict",
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            httpOnly: true
+        });
+
+        return res.status(200).json({ message: "Google Sign-In successful", user: existingUser });
+    } catch (error) {
+        console.log("Google Auth error: ", error);
+        return res.status(500).json({ message: `Google Auth error: ${error}` });
+    }
+}
 
     

@@ -1,10 +1,10 @@
-const nodemailer = require("nodemailer");
+import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+dotenv.config();
 
 // Create a transporter using SMTP
 const transporter = nodemailer.createTransport({
-  service: 'Gmail',
-  port: 587,
-  secure: true, // use STARTTLS (upgrade connection to TLS after connecting)
+  service: 'gmail',
   auth: {
     user: process.env.EMAIL,
     pass: process.env.APP_PASSWORD,
@@ -74,6 +74,6 @@ export const sendOtpMail = async (to, otp) => {
         console.log("Otp Sent Successfuly")
 
     } catch (err) {
-        console.log("Internal error ")
+        console.log("Internal error sending mail: ", err)
     }
 }
